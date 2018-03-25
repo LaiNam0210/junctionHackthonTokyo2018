@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin page</title>
+    <link rel="stylesheet" href="./bootstrap.min.css">
+    <script src="./jquery.min.js"></script>
+    <script type="text/javascript" src="./moment.js"></script>
+    <script type="text/javascript" src="./Chart.js"></script>
+    <script type="text/javascript" src="./patternomaly.js"></script>
+    <script type="text/javascript" src="./Rx.min.js"></script>
+    <script type="text/javascript" src="./chartjs-plugin-streaming.js"></script>
+    <script type="text/javascript" src="./pusher.js"></script>
+</head>
+<body>
+<script>
+  const yAxisSize = 12;
+  const xAxisSize = 12;
+  let subject = new Rx.Subject();
+
+</script>
+<div class="container">
+    <div class="row">
+        <div class="col-md-6 col-xl-6 col-sm-6">
+            <canvas id="js-active-users"></canvas>
+            <script>
+              (function () {
+                var id = 'js-active-users';
+                var ctx = document.getElementById(id).getContext('2d');
+                var chart = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                    datasets: [{
+                      data: [],
+                      label: 'active users',
+                      // borderColor: 'rgb(255, 0, 0)', // line color
+                      backgroundColor: 'rgba(255, 0, 0, 0.5)', // fill color
+                      fill: false,                      // no fill
+                      // lineTension: 0                    // straight line
+                    }]
+                  },
+                  options: {
+                    title: {
+                      text: 'Realtime user registered count', // chart title
+                      display: true,
+                    },
+                    legend: {
+                      labels: { fontSize: 15 }
+                    },
+                    scales: {
+                      xAxes: [{
+                        type: 'realtime', // auto-scroll on X axis,
+                      }],
+                      yAxes: [{
+                        scaleLabel: {
+                          display: true,
+                          labelString: 'User count',
+                          fontSize: yAxisSize,
+                          fontColor: 'blue',
+                        },
+                        ticks: {
+                          beginAtZero: true
+                        },
+                      }]
+                    },
+                    plugins: {
+                      streaming: {
+                        duration: 300000, // display data for the latest 300000ms (5 mins)
+                      }
+                    }
+                  }
+                });
+                subject.subscribe({
+                                    next: (results) => {
+                                      let uniqUserKeys = {};
+                                      let totalUsers = 0;
+                                      results.forEach(function (value, index) {
+                                        if (value.customer_id !== null && uniqUserKeys[value.customer_id]
+                                                                          === undefined) {
+                                          uniqUserKeys[value.customer_id] = true;
+                                          totalUsers++;
+                                        }
+                                      });
+
+                                      Array.prototype.push.apply(
+                                        chart.data.datasets[0].data, [{ x: new Date().getTime(), y: totalUsers }]
+                                      );
+                                    }
+                                  });
+              })();
+            </script>
+        </div>
+        <div class="col-md-6 col-xl-6 col-sm-6">
+            <canvas id="js-item-count"></canvas>
+            <script>
+              (function () {
+                var id = 'js-item-count';
+                var ctx = document.getElementById(id).getContext('2d');
+                var chart = new Chart(ctx, {
+                  type: 'line',
+                  data: {
+                    datasets: [{
+                      data: [],
+                      label: 'storage',                     // 'buy' price data
+                      backgroundColor: 'rgba(255, 0, 0, 0.5)', // fill color
+                      fill: false,                      // no fill
+                      // lineTension: 0                    // straight line
+                    }, {
+                      data: [],
+                      label: 'non_storage',                     // 'buy' price data
+                      // borderColor: 'rgb(255, 128, 0)', // line color
+                      backgroundColor: 'rgba(255, 128, 0, 0.5)', // fill color
+                      fill: false,                      // no fill
+                      // lineTension: 0                    // straight line
+                    }, {
+                      data: [],
+                      label: 'temporary_leaving',                     // 'buy' price data
+                      // borderColor: 'rgb(0, 64, 255)', // line color
+                      backgroundColor: 'rgba(0, 64, 255, 0.5)', // fill color
+                      fill: false,                      // no fill
+                      // lineTension: 0                    // straight line
+                    }, {
+                      data: [],
+                      label: 'leaving',                     // 'buy' price data
+                      // borderColor: 'rgb(191, 0, 255)', // line color
+                      backgroundColor: 'rgba(191, 0, 255, 0.5)', // fill color
+                      fill: false,                      // no fill
+                      // lineTension: 0                    // straight line
+                    }]
+                  },
+                  options: {
+                    title: {
+                      text: 'Realtime item store count', // chart title
+                      display: true
+                    },
+                    scales: {
+                      xAxes: [{
+                        type: 'realtime' // auto-scroll on X axis
+                      }],
+                      yAxes: [{
+                        ticks: {
+                          beginAtZero: true
+                        },
+                        scaleLabel: {
+                          display: true,
+                          fontSize: yAxisSize,
+                          fontColor: 'blue',
+                          labelString: 'Item count'
+                        }
+                      }]
+                    },
+                    plugins: {
+                      streaming: {
+                        duration: 300000, // display data for the latest 300000ms (5 mins)
+                      }
+                    }
+                  }
+                });
+
+                subject.subscribe({
+                                    next: (v) => {
+                                      let data = {};
+                                      v.forEach(function (value, index) {
+                                        switch (value.storage_status) {
+                                          case 'non_storage':
+                                            data['non_storage'] === undefined ? data['non_storage'] = 1
+                                              : data['non_storage']++;
+                                            break;
+                                          case 'storage':
+                                            data['storage'] === undefined ? data['storage'] = 1 : data['storage']++;
+                                            break;
+                                          case 'temporary_leaving':
+                                            data['temporary_leaving'] === undefined ? data['temporary_leaving'] = 1
+                                              : data['temporary_leaving']++;
+                                            break;
+                                          case 'leaving':
+                                            data['leaving'] === undefined ? data['leaving'] = 1 : data['leaving']++;
+                                            break;
+                                          default:
+                                            alert('error');
+                                        }
+                                      });
+
+                                      var currentTimes = new Date().getTime();
+                                      Array.prototype.push.apply(
+                                        chart.data.datasets[0].data, [{ x: currentTimes, y: data.storage }]
+                                      );
+                                      Array.prototype.push.apply(
+                                        chart.data.datasets[1].data, [{ x: currentTimes, y: data.non_storage }]
+                                      );
+                                      Array.prototype.push.apply(
+                                        chart.data.datasets[2].data, [{ x: currentTimes, y: data.temporary_leaving }]
+                                      );
+                                      Array.prototype.push.apply(
+                                        chart.data.datasets[3].data, [{ x: currentTimes, y: data.leaving }]
+                                      );
+                                    }
+                                  });
+              })();
+            </script>
+        </div>
+    </div>
+    <hr>
+    <div class="row">
+        <div class="col-md-6 col-xl-6 col-sm-6">
+            <canvas id="js-distribute-store"></canvas>
+        </div>
+    </div>
+</div>
+</body>
+<script>
+
+  let id = 'js-distribute-store';
+  let ctx = document.getElementById(id);
+  dchart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['all Stores'],
+      datasets: [{
+        label: "",
+        backgroundColor: [
+          '#ff3333',
+        ],
+        data: []
+      }, {
+        label: "",
+        backgroundColor: [
+          '#808080'
+        ],
+        data: []
+      }, {
+        label: "",
+        backgroundColor: [
+          '#ff8000',
+        ],
+        data: []
+      }, {
+        label: "",
+        backgroundColor: [
+          '#0080ff',
+        ],
+        data: []
+      }, {
+        label: "",
+        backgroundColor: [
+          '#000000',
+        ],
+        data: []
+      }],
+    },
+    options: {
+      title: {
+        display: true,
+        text: 'Realtime store count'
+      },
+      legend: {
+        fontSize: 30,
+        position: 'right'
+      },
+      scales: {
+        yAxes: [{
+          ticks: {
+            beginAtZero: true
+          },
+          scaleLabel: {
+            display: true,
+            fontSize: yAxisSize,
+            fontColor: 'blue',
+            labelString: 'Item count'
+          }
+        }],
+        xAxes: [{}]
+      },
+    },
+  });
+
+  subject.subscribe({
+      next: (val) => {
+        let results = val.reduce(function (a, b) {
+          if (a[b["storing_address"]] === undefined) {
+            a[b["storing_address"]] = [b];
+          } else {
+            a[b["storing_address"]].push(b);
+          }
+
+          return a;
+        }, {});
+
+        let transformedData = Object.keys(results).map(function (value) {
+          return { length: results[value].length, key: value }
+        });
+
+        let sortedData = transformedData.sort(function (a, b) {
+          return b.length - a.length;
+        });
+
+        const MAXIMUM_SHOW_DATA = 5;
+        sortedData =
+          sortedData.length > MAXIMUM_SHOW_DATA ? sortedData.slice(0, MAXIMUM_SHOW_DATA) : sortedData;
+
+        sortedData.forEach(function (value, index) {
+          dchart.data.datasets[index].data = [value.length];
+          dchart.data.datasets[index].label = value.key;
+          dchart.data.label = sortedData.map(function (value) {
+            return value.key;
+          })
+        });
+        dchart.update()
+      }
+    });
+
+  $(document).ready(function () {
+    setInterval(function () {
+      let myHeaders = new Headers();
+      let myInit = {
+        method: 'GET',
+        headers: myHeaders,
+        mode: 'cors',
+        async: false
+      };
+
+      let myRequest = new Request(
+        'https://junction-tokyo.minikura.com/v1/minikura/item?oem_key=4e6d869e84072317',
+        myInit);
+
+      let res = fetch(myRequest, myInit)
+        .then(function (d) {
+          return d.json()
+        })
+        .then(function (res) {
+          subject.next(res.results.filter(function (value) {
+            return value.storing_address !== null;
+          }));
+        });
+    }, 5000)
+  });
+</script>
+
+</html>
